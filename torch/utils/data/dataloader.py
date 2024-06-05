@@ -14,6 +14,7 @@ import threading
 import warnings
 
 from typing import Any, Callable, Iterable, TypeVar, Generic, List, Optional, Union
+from copy import deepcopy
 
 import multiprocessing as python_multiprocessing
 import torch
@@ -1023,7 +1024,7 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
             print("Spinning up threads!")
             w = threading.Thread(
                 target=_utils.worker._worker_loop,
-                args=(self._dataset_kind, self._dataset, index_queue,
+                args=(self._dataset_kind, deepcopy(self._dataset), index_queue,
                       self._worker_result_queue, self._workers_done_event,
                       self._auto_collation, self._collate_fn, self._drop_last,
                       self._base_seed, self._worker_init_fn, i, self._num_workers,
