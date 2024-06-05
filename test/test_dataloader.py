@@ -355,6 +355,14 @@ class CountingIterableDataset(IterableDataset):
         return self.n
 
 
+class TestSimpleDataLoader(TestCase):
+    def test_simple(self):
+        dataset = CountingDataset(20)
+        loader = DataLoader(dataset, num_workers=4, batch_size=2)
+        # self.assertEqual(len(loader), 5)
+        print(list(iter(loader)))
+        self.assertTrue(False)
+
 @unittest.skipIf(
     TEST_WITH_TSAN,
     "Fails with TSAN with the following error: starting new threads after multi-threaded "

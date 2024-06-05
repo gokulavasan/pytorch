@@ -1007,7 +1007,7 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
                 _sharding_worker_init_fn, self._worker_init_fn, self._world_size, self._rank)
 
         # No certainty which module multiprocessing_context is
-        self._worker_result_queue = multiprocessing_context.Queue()  # type: ignore[var-annotated]
+        self._worker_result_queue = queue.Queue()  # type: ignore[var-annotated]
         self._worker_pids_set = False
         self._shutdown = False
         self._workers_done_event = multiprocessing_context.Event()
@@ -1016,11 +1016,12 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
         self._workers = []
         for i in range(self._num_workers):
             # No certainty which module multiprocessing_context is
-            index_queue = multiprocessing_context.Queue()  # type: ignore[var-annotated]
+            index_queue = queue.Queue()  # type: ignore[var-annotated]
             # Need to `cancel_join_thread` here!
             # See sections (2) and (3b) above.
-            index_queue.cancel_join_thread()
-            w = multiprocessing_context.Process(
+            # index_queue.cancel_join_thread()
+            print("Spinning up threads!")
+            w = threading.Thread(
                 target=_utils.worker._worker_loop,
                 args=(self._dataset_kind, self._dataset, index_queue,
                       self._worker_result_queue, self._workers_done_event,
@@ -1076,8 +1077,8 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
                 atexit.register(_MultiProcessingDataLoaderIter._clean_up_worker, w)
 
         # .pid can be None only before process is spawned (not the case, so ignore)
-        _utils.signal_handling._set_worker_pids(id(self), tuple(w.pid for w in self._workers))  # type: ignore[misc]
-        _utils.signal_handling._set_SIGCHLD_handler()
+        # _utils.signal_handling._set_worker_pids(id(self), tuple(w.pid for w in self._workers))  # type: ignore[misc]
+        # _utils.signal_handling._set_SIGCHLD_handler()
         self._worker_pids_set = True
         self._reset(loader, first_iter=True)
 
@@ -1420,7 +1421,7 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
                     # so that it can wake up and check `pin_memory_thread_done_event`
                     self._worker_result_queue.put((None, None))
                     self._pin_memory_thread.join()
-                    self._worker_result_queue.cancel_join_thread()
+                    # self._worker_result_queue.cancel_join_thread()
                     self._worker_result_queue.close()
 
                 # Exit workers now.
@@ -1438,9 +1439,9 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
                     # wrong, we set a timeout and if the workers fail to join,
                     # they are killed in the `finally` block.
                     w.join(timeout=_utils.MP_STATUS_CHECK_INTERVAL)
-                for q in self._index_queues:
-                    q.cancel_join_thread()
-                    q.close()
+                # for q in self._index_queues:
+                    # q.cancel_join_thread()
+                    # q.close()
             finally:
                 # Even though all this function does is putting into queues that
                 # we have called `cancel_join_thread` on, weird things can
@@ -1452,9 +1453,9 @@ class _MultiProcessingDataLoaderIter(_BaseDataLoaderIter):
                 # FIXME: Unfortunately, for Windows, we are missing a worker
                 #        error detection mechanism here in this function, as it
                 #        doesn't provide a SIGCHLD handler.
-                if self._worker_pids_set:
-                    _utils.signal_handling._remove_worker_pids(id(self))
-                    self._worker_pids_set = False
+                # if self._worker_pids_set:
+                #     _utils.signal_handling._remove_worker_pids(id(self))
+                #     self._worker_pids_set = False
                 for w in self._workers:
                     if w.is_alive():
                         # Existing mechanisms try to make the workers exit
